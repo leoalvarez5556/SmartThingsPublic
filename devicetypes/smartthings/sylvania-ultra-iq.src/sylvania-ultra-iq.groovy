@@ -11,11 +11,8 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
-
-//DEPRECATED - Using the generic DTH for this device. Users need to be moved before deleting this DTH
-
 metadata {
-	definition (name: "Sylvania Ultra iQ", namespace:"smartthings", author: "SmartThings", ocfDeviceType: "oic.d.light") {
+	definition (name: "Sylvania Ultra iQ", namespace:"smartthings", author: "SmartThings") {
 		capability "Switch Level"
 		capability "Configuration"
 		capability "Switch"
@@ -36,7 +33,7 @@ metadata {
 	tiles {
 		standardTile("switch", "device.switch", width: 2, height: 2, canChangeIcon: true) {
 			state "off", label: '${name}', action: "switch.on", icon: "st.switches.switch.off", backgroundColor: "#ffffff"
-			state "on", label: '${name}', action: "switch.off", icon: "st.switches.switch.on", backgroundColor: "#00a0dc"
+			state "on", label: '${name}', action: "switch.off", icon: "st.switches.switch.on", backgroundColor: "#79b821"
 		}
 		controlTile("levelSliderControl", "device.level", "slider", height: 2, width: 1, inactiveLabel: false) {
 			state "level", action:"switch level.setLevel"

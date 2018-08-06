@@ -1,5 +1,3 @@
-//DEPRECATED. INTEGRATION MOVED TO SUPER LAN CONNECT
-
 /**
  *  Copyright 2015 SmartThings
  *
@@ -23,8 +21,6 @@
 		capability "Refresh"
 		capability "Sensor"
 
-    	attribute "currentIP", "string"
-
 		command "subscribe"
 		command "resubscribe"
 		command "unsubscribe"
@@ -35,30 +31,17 @@
 	}
 
 	// UI tile definitions
-    tiles(scale: 2) {
-        multiAttributeTile(name:"rich-control", type: "generic", canChangeIcon: true){
-            tileAttribute ("device.motion", key: "PRIMARY_CONTROL") {
-                 attributeState "active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#00A0DC"
-                 attributeState "inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#cccccc"
-                 attributeState "offline", label:'${name}', icon:"st.motion.motion.active", backgroundColor:"#cccccc"
- 			}
-            tileAttribute ("currentIP", key: "SECONDARY_CONTROL") {
-             	 attributeState "currentIP", label: ''
- 			}
-        }
-
+	tiles {
 		standardTile("motion", "device.motion", width: 2, height: 2) {
-			state("active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#00A0DC")
-			state("inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#CCCCCC")
-      		state("offline", label:'${name}', icon:"st.motion.motion.inactive", backgroundColor:"#ff0000")
+			state("active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0")
+			state("inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff")
+		}
+		standardTile("refresh", "device.motion", inactiveLabel: false, decoration: "flat") {
+			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-        standardTile("refresh", "device.switch", inactiveLabel: false, height: 2, width: 2, decoration: "flat") {
-            state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
-        }
-
 		main "motion"
-		details (["rich-control", "refresh"])
+		details (["motion", "refresh"])
 	}
 }
 
@@ -79,8 +62,8 @@ def parse(String description) {
 	def result = []
 	def bodyString = msg.body
 	if (bodyString) {
-    	unschedule("setOffline")
-        def body = new XmlSlurper().parseText(bodyString.replaceAll("[^\\x20-\\x7e]", ""))
+		def body = new XmlSlurper().parseText(bodyString)
+
 		if (body?.property?.TimeSyncRequest?.text()) {
 			log.trace "Got TimeSyncRequest"
 			result << timeSyncResponse()
@@ -89,7 +72,7 @@ def parse(String description) {
 		} else if (body?.property?.BinaryState?.text()) {
 			def value = body?.property?.BinaryState?.text().toInteger() == 1 ? "active" : "inactive"
 			log.debug "Notify - BinaryState = ${value}"
-      result << createEvent(name: "motion", value: value, descriptionText: "Motion is ${value}")
+			result << createEvent(name: "motion", value: value)
 		} else if (body?.property?.TimeZoneNotification?.text()) {
 			log.debug "Notify: TimeZoneNotification = ${body?.property?.TimeZoneNotification?.text()}"
 		}
@@ -106,6 +89,14 @@ private getTime() {
 
 private getCallBackAddress() {
 	device.hub.getDataValue("localIP") + ":" + device.hub.getDataValue("localSrvPortTCP")
+}
+
+private Integer convertHexToInt(hex) {
+	Integer.parseInt(hex,16)
+}
+
+private String convertHexToIP(hex) {
+	[convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
 
 private getHostAddress() {
@@ -134,8 +125,6 @@ def refresh() {
 ////////////////////////////
 def getStatus() {
 log.debug "Executing WeMo Motion 'getStatus'"
-if (device.currentValue("currentIP") != "Offline")
-    runIn(30, setOffline)
 new physicalgraph.device.HubAction("""POST /upnp/control/basicevent1 HTTP/1.1
 SOAPACTION: "urn:Belkin:service:basicevent:1#GetBinaryState"
 Content-Length: 277
@@ -176,9 +165,7 @@ def subscribe(ip, port) {
 	def existingPort = getDataValue("port")
 	if (ip && ip != existingIp) {
 		log.debug "Updating ip from $existingIp to $ip"
-        updateDataValue("ip", ip)
-    	def ipvalue = convertHexToIP(getDataValue("ip"))
-    	sendEvent(name: "currentIP", value: ipvalue, descriptionText: "IP changed to ${ipvalue}")
+		updateDataValue("ip", ip)
 	}
 	if (port && port != existingPort) {
 		log.debug "Updating port from $existingPort to $port"
@@ -238,16 +225,4 @@ User-Agent: CyberGarage-HTTP/1.0
  </s:Body>
 </s:Envelope>
 """, physicalgraph.device.Protocol.LAN)
-}
-
-def setOffline() {
-    sendEvent(name: "motion", value: "offline", descriptionText: "The device is offline")
-}
-
-private Integer convertHexToInt(hex) {
- 	Integer.parseInt(hex,16)
-}
-
-private String convertHexToIP(hex) {
- 	[convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }

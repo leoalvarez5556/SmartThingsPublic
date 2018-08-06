@@ -21,7 +21,6 @@ metadata {
 		capability "Illuminance Measurement"
 		capability "Temperature Measurement"
 		capability "Relative Humidity Measurement"
-		capability "Ultraviolet Index"
 		capability "Sensor"
 
 		attribute "localSunrise", "string"
@@ -38,7 +37,6 @@ metadata {
 		attribute "alertKeys", "string"
 		attribute "sunriseDate", "string"
 		attribute "sunsetDate", "string"
-		attribute "lastUpdate", "string"
 
 		command "refresh"
 	}
@@ -110,7 +108,6 @@ metadata {
 			state "nt_cloudy", icon:"st.custom.wu1.nt_cloudy", label: ""
 			state "nt_partlycloudy", icon:"st.custom.wu1.nt_partlycloudy", label: ""
 		}
-        
 		valueTile("feelsLike", "device.feelsLike", decoration: "flat") {
 			state "default", label:'feels like ${currentValue}°'
 		}
@@ -131,36 +128,28 @@ metadata {
 			state "default", label:'${currentValue}% precip'
 		}
 
-		valueTile("ultravioletIndex", "device.ultravioletIndex", decoration: "flat") {
-			state "default", label:'${currentValue} UV index'
-		}
-
-		valueTile("alert", "device.alert", width: 2, height: 1, decoration: "flat") {
-			state "default", label:'${currentValue}'
-		}
-        
 		standardTile("refresh", "device.weather", decoration: "flat") {
 			state "default", label: "", action: "refresh", icon:"st.secondary.refresh"
 		}
 
+		valueTile("alert", "device.alert", width: 3, height: 1, decoration: "flat") {
+			state "default", label:'${currentValue}'
+		}
+
 		valueTile("rise", "device.localSunrise", decoration: "flat") {
-			state "default", label:'Sunrise ${currentValue}'
+			state "default", label:'${currentValue}'
 		}
 
 		valueTile("set", "device.localSunset", decoration: "flat") {
-			state "default", label:'Sunset ${currentValue}'
+			state "default", label:'${currentValue}'
 		}
 
 		valueTile("light", "device.illuminance", decoration: "flat") {
 			state "default", label:'${currentValue} lux'
 		}
-        
-		valueTile("lastUpdate", "device.lastUpdate", width: 3, height: 1, decoration: "flat") {
-			state "default", label:'Last update:\n${currentValue}'
-		}
 
 		main(["temperature", "weatherIcon","feelsLike"])
-		details(["temperature", "humidity", "weatherIcon", "feelsLike", "wind", "weather", "city", "percentPrecip", "ultravioletIndex", "alert", "refresh", "rise", "set", "light", "lastUpdate"])}
+		details(["temperature", "humidity", "weatherIcon","feelsLike","wind","weather", "city","percentPrecip", "refresh","alert","rise","set","light"])}
 }
 
 // parse events into attributes
@@ -169,8 +158,7 @@ def parse(String description) {
 }
 
 def installed() {
-	poll()
-	runEvery30Minutes(poll)
+	runPeriodically(3600, poll)
 }
 
 def uninstalled() {
@@ -180,10 +168,6 @@ def uninstalled() {
 // handle commands
 def poll() {
 	log.debug "WUSTATION: Executing 'poll', location: ${location.name}"
-
-	// Last update time stamp
-	def timeStamp = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
-	sendEvent(name: "lastUpdate", value: timeStamp)
 
 	// Current conditions
 	def obs = get("conditions")?.current_observation
@@ -212,9 +196,7 @@ def poll() {
 			send(name: "city", value: cityValue, isStateChange: true)
 		}
 
-		send(name: "ultravioletIndex", value: Math.round(obs.UV as Double))
-
-		// Sunrise / Sunset
+		// Sunrise / sunset
 		def a = get("astronomy")?.moon_phase
 		def today = localDate("GMT${obs.local_tz_offset}")
 		def ltf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm")

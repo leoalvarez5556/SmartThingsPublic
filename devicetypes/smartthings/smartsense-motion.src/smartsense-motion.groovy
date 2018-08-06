@@ -12,7 +12,7 @@
  *
  */
 metadata {
-	definition (name: "SmartSense Motion", namespace: "smartthings", author: "SmartThings", runLocally: true, minHubCoreVersion: '000.017.0012', executeCommandsLocally: false, mnmn: "SmartThings", vid: "generic-motion-2") {
+	definition (name: "SmartSense Motion", namespace: "smartthings", author: "SmartThings") {
 		capability "Signal Strength"
 		capability "Motion Sensor"
 		capability "Sensor"
@@ -30,8 +30,8 @@ metadata {
 	tiles(scale: 2) {
 		multiAttributeTile(name:"motion", type: "generic", width: 6, height: 4){
 			tileAttribute ("device.motion", key: "PRIMARY_CONTROL") {
-				attributeState "active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#00A0DC"
-				attributeState "inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#cccccc"
+				attributeState "active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0"
+				attributeState "inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff"
 			}
 		}
 		valueTile("battery", "device.battery", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
@@ -44,8 +44,8 @@ metadata {
 }
 
 def parse(String description) {
-	def results = [:]
-	if (description.startsWith("zone") || !isSupportedDescription(description)) {
+	def results
+	if (isZoneType19(description) || !isSupportedDescription(description)) {
 		results = parseBasicMessage(description)
 	}
 	else if (isMotionStatusMessage(description)){
@@ -57,24 +57,21 @@ def parse(String description) {
 
 private Map parseBasicMessage(description) {
 	def name = parseName(description)
-	def results = [:]
-	if (name != null) {
-		def value = parseValue(description)
-		def linkText = getLinkText(device)
-		def descriptionText = parseDescriptionText(linkText, value, description)
-		def handlerName = value
-		def isStateChange = isStateChange(device, name, value)
+	def value = parseValue(description)
+	def linkText = getLinkText(device)
+	def descriptionText = parseDescriptionText(linkText, value, description)
+	def handlerName = value
+	def isStateChange = isStateChange(device, name, value)
 
-		results = [
-				name           : name,
-				value          : value,
-				linkText       : linkText,
-				descriptionText: descriptionText,
-				handlerName    : handlerName,
-				isStateChange  : isStateChange,
-				displayed      : displayed(description, isStateChange)
-		]
-	}
+	def results = [
+		name: name,
+		value: value,
+		linkText: linkText,
+		descriptionText: descriptionText,
+		handlerName: handlerName,
+		isStateChange: isStateChange,
+		displayed: displayed(description, isStateChange)
+	]
 	log.debug "Parse returned $results.descriptionText"
 	return results
 }
@@ -87,12 +84,16 @@ private String parseName(String description) {
 }
 
 private String parseValue(String description) {
-	def zs = zigbee.parseZoneStatus(description)
-	if (zs) {
-		zs.isAlarm1Set() ? "active" : "inactive"
-	} else {
-		description
+	if (isZoneType19(description)) {
+		if (translateStatusZoneType19(description)) {
+			return "active"
+		}
+		else {
+			return "inactive"
+		}
 	}
+
+	description
 }
 
 private parseDescriptionText(String linkText, String value, String description) {

@@ -20,7 +20,6 @@ metadata {
 	definition(name: "Wattvision", namespace: "smartthings", author: "Steve Vlaminck") {
 		capability "Power Meter"
 		capability "Refresh"
-		capability "Sensor"
 		attribute "powerContent", "string"
 	}
 
@@ -30,18 +29,18 @@ metadata {
 
 	tiles {
 
-		valueTile("power", "device.power", canChangeIcon: true) {
+		valueTile("power", "device.power") {
 			state "power", label: '${currentValue} W'
 		}
 
-		htmlTile(name: "powerContent", attribute: "powerContent", type: "HTML", whitelist: ["www.wattvision.com"] , url: '${currentValue}', width: 3, height: 2)
+		tile(name: "powerChart", attribute: "powerContent", type: "HTML", url: '${currentValue}', width: 3, height: 2) { }
 
 		standardTile("refresh", "device.power", inactiveLabel: false, decoration: "flat") {
 			state "default", label: '', action: "refresh.refresh", icon: "st.secondary.refresh"
 		}
 
 		main "power"
-		details(["powerContent", "power", "refresh"])
+		details(["powerChart", "power", "refresh"])
 
 	}
 }
@@ -75,10 +74,10 @@ public addWattvisionData(json) {
 
 	log.trace "Adding data from Wattvision"
 
-	def data = parseJson(json.data.toString())
+	def data = json.data
 	def units = json.units ?: "watts"
 
-	if (data.size() > 0) {
+	if (data) {
 		def latestData = data[-1]
 		data.each {
 			sendPowerEvent(it.t, it.v, units, (latestData == it))
@@ -103,8 +102,4 @@ private sendPowerEvent(time, value, units, isLatest = false) {
 	log.debug "sending event: ${eventData}"
 	sendEvent(eventData)
 
-}
-
-def parseJson(String s) {
-	new groovy.json.JsonSlurper().parseText(s)
 }
